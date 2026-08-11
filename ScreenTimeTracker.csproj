@@ -9,8 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.5" />
-    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.10" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.10" />
   </ItemGroup>
 
