@@ -9,6 +9,7 @@ class DataBase
         {
             Directory.CreateDirectory("Database");
             File.Create("Database/STTData.db").Close();
+            File.Create("Database/DistractingApps.txt").Close();
 
             string createServicesTable = "CREATE TABLE TimeData (AppName VARCHAR(64) PRIMARY KEY, Time VARCHAR(24))";
             string createLimitsTable = "CREATE TABLE LimitsData (AppName VARCHAR(64) PRIMARY KEY, TimeLimit VARCHAR(24))";

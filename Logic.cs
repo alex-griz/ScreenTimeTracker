@@ -14,6 +14,7 @@ class Logic
 
     private static string currentApp = "";
     private static DateTime startTime = DateTime.Now;
+    private static string[] blockedApps = [];
 
     private static void WriteTime(TimeSpan workTime, string name)
     {
@@ -58,6 +59,48 @@ class Logic
         while (reader.Read())
         {
             Console.WriteLine($"{reader["AppName"]} :      {reader["Time"]}");
+        }
+    }
+    public static void DistApps(string[] cmd)
+    {
+        string[] apps = [];
+        using StreamReader reader = new StreamReader("Database/DistractingApps.txt");
+        string line = reader.ReadLine();
+
+        while (line != null)
+        {
+            apps.Append(line);
+        }
+        reader.Close();
+        if (cmd.Length < 2)
+        {
+            Console.WriteLine("List of distracting apps:");
+            foreach (string i in apps)
+            {
+                Console.WriteLine(i);
+            }
+        }
+        else
+        {
+            if (cmd.Length < 3){Console.WriteLine("Using this command: distracting-apps add/remove <appname>"); return;}
+            using StreamWriter writer = new StreamWriter("Database/DistractingApps.txt");
+            switch (cmd[1])
+            {
+                case "add":
+                    writer.WriteLine(cmd[2]);
+                    break;
+                case "remove":
+                    File.WriteAllText("Database/DistractingApps.txt", string.Empty);
+                    apps = apps.Where(x => x != cmd[2]).ToArray();
+                    foreach(string i in apps)
+                    {
+                        writer.WriteLine(i);
+                    }
+                    break;
+                default:
+                    Console.WriteLine($"Unknown argument {cmd[1]}");
+                    break;
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ class Program
                 case "focus-mode":
                     break;
                 case "distracting-apps":
+                    Logic.DistApps(cmd);
                     break;
                 case "help":
                     break;
