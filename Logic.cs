@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+
 namespace ScreenTimeTracker;
 class Logic
 {
@@ -63,13 +64,14 @@ class Logic
     }
     public static void DistApps(string[] cmd)
     {
-        string[] apps = [];
+        List<string> apps = new List<string>();
         using StreamReader reader = new StreamReader("Database/DistractingApps.txt");
         string line = reader.ReadLine();
 
         while (line != null)
         {
-            apps.Append(line);
+            apps.Add(line);
+            line = reader.ReadLine();
         }
         reader.Close();
         if (cmd.Length < 2)
@@ -91,7 +93,7 @@ class Logic
                     break;
                 case "remove":
                     File.WriteAllText("Database/DistractingApps.txt", string.Empty);
-                    apps = apps.Where(x => x != cmd[2]).ToArray();
+                    apps.Remove(cmd[2]);
                     foreach(string i in apps)
                     {
                         writer.WriteLine(i);
@@ -101,6 +103,51 @@ class Logic
                     Console.WriteLine($"Unknown argument {cmd[1]}");
                     break;
             }
+        }
+    }
+    public static void Limits(string[] cmd)
+    {
+        Dictionary<string,string> limit_list = new Dictionary<string, string>();
+        using var LoadConnection = new SqliteConnection(DataBase.connectionString);
+        LoadConnection.Open();
+        using var command = new SqliteCommand("SELECT * FROM LimitsData", LoadConnection);
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            limit_list[reader["AppName"].ToString()] = reader["TimeLimit"].ToString();
+        }
+        if (cmd.Length < 2)
+        {
+            foreach(KeyValuePair<string,string> pair in limit_list)
+            {
+                Console.WriteLine($"App:   {pair.Key}     Time Limit:   {pair.Value}");
+            }
+        }
+        else
+        {
+            if(cmd.Length < 4 && cmd[2] != "remove"){Console.WriteLine("Using this command: limits add/remove/edit <appname> <hh:mm:ss"); return;}
+            using var  EditConnection = new SqliteConnection(DataBase.connectionString);
+            EditConnection.Open();
+            using var EditCommand = new SqliteCommand("", EditConnection);
+            switch (cmd[1])
+            {
+                case "add":
+                    EditCommand.CommandText = "INSERT INTO LimitsData (AppName , TimeLimit) VALUES (@N, @T)";
+                    command.Parameters.AddWithValue("@T", cmd[3]);
+                    break;
+                case "remove":
+                    EditCommand.CommandText = "DELETE * FROM LimitsData WHERE Appname = @N";
+                    break;
+                case "edit":
+                    EditCommand.CommandText = "UPDATE LimitsData SET TimeLimit = @T WHERE AppName = @N";
+                    command.Parameters.AddWithValue("@T", cmd[3]);
+                    break;
+                default:
+                    Console.WriteLine($"Unknown argument {cmd[1]}");
+                    return;
+            }
+            command.Parameters.AddWithValue("@N", cmd[2]);
+            command.ExecuteNonQuery();
         }
     }
 }

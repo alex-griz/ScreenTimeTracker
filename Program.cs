@@ -18,6 +18,7 @@ class Program
                     Logic.ShowScreenTime();
                     break;
                 case "limits":
+                    Logic.Limits(cmd);
                     break;
                 case "focus-mode":
                     break;
