@@ -21,6 +21,7 @@ class Program
                     Logic.Limits(cmd);
                     break;
                 case "focus-mode":
+                    Logic.FocusMode(cmd);
                     break;
                 case "distracting-apps":
                     Logic.DistApps(cmd);

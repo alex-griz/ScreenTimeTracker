@@ -16,6 +16,7 @@ class Logic
     private static string currentApp = "";
     private static DateTime startTime = DateTime.Now;
     private static string[] blockedApps = [];
+    public static bool IsFocusModeEnabled = false;
 
     private static void WriteTime(TimeSpan workTime, string name)
     {
@@ -148,6 +149,45 @@ class Logic
             }
             command.Parameters.AddWithValue("@N", cmd[2]);
             command.ExecuteNonQuery();
+        }
+    }
+    public static void FocusMode(string[] cmd)
+    {
+        if (cmd.Length < 2)
+        {
+            Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
+            return;
+        }
+        switch (cmd[1])
+        {
+            case "enable":
+                
+                if (cmd.Length > 2)
+                {
+                    try
+                    {
+                        double time = TimeSpan.Parse(cmd[2]).TotalMilliseconds;
+                        var timer = new System.Timers.Timer(time);
+                        timer.AutoReset = false;
+                        timer.Elapsed += (s,e) => {IsFocusModeEnabled = false;};
+                        IsFocusModeEnabled = true;
+                        timer.Start();
+                        return;
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
+                        return;
+                    }
+                }
+                IsFocusModeEnabled = true;
+                break;
+            case "disable":
+                IsFocusModeEnabled = false;
+                break;
+            default:
+                Console.WriteLine($"Unknown argument {cmd[1]}");
+                break;
         }
     }
 }
