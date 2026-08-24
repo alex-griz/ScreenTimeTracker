@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -43,6 +44,12 @@ class Logic
 
         GetWindowThreadProcessId(hwnd, out uint pid);
         Process process = Process.GetProcessById((int)pid);
+        if (DataBase.DistAppsList.Contains(process.ProcessName) && IsFocusModeEnabled)
+        {
+            process.Kill();
+            Console.WriteLine($"App {process.ProcessName} is blocked");
+            return;
+        }
         if (currentApp != process.ProcessName)
         {
             TimeSpan workTime = DateTime.Now - startTime;
@@ -65,20 +72,10 @@ class Logic
     }
     public static void DistApps(string[] cmd)
     {
-        List<string> apps = new List<string>();
-        using StreamReader reader = new StreamReader("Database/DistractingApps.txt");
-        string line = reader.ReadLine();
-
-        while (line != null)
-        {
-            apps.Add(line);
-            line = reader.ReadLine();
-        }
-        reader.Close();
         if (cmd.Length < 2)
         {
             Console.WriteLine("List of distracting apps:");
-            foreach (string i in apps)
+            foreach (string i in DataBase.DistAppsList)
             {
                 Console.WriteLine(i);
             }
@@ -91,11 +88,12 @@ class Logic
             {
                 case "add":
                     writer.WriteLine(cmd[2]);
+                    DataBase.DistAppsList.Add(cmd[2]);
                     break;
                 case "remove":
                     File.WriteAllText("Database/DistractingApps.txt", string.Empty);
-                    apps.Remove(cmd[2]);
-                    foreach(string i in apps)
+                    DataBase.DistAppsList.Remove(cmd[2]);
+                    foreach(string i in DataBase.DistAppsList)
                     {
                         writer.WriteLine(i);
                     }
@@ -108,18 +106,9 @@ class Logic
     }
     public static void Limits(string[] cmd)
     {
-        Dictionary<string,string> limit_list = new Dictionary<string, string>();
-        using var LoadConnection = new SqliteConnection(DataBase.connectionString);
-        LoadConnection.Open();
-        using var command = new SqliteCommand("SELECT * FROM LimitsData", LoadConnection);
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            limit_list[reader["AppName"].ToString()] = reader["TimeLimit"].ToString();
-        }
         if (cmd.Length < 2)
         {
-            foreach(KeyValuePair<string,string> pair in limit_list)
+            foreach(KeyValuePair<string,TimeSpan> pair in DataBase.TimeLimitsList)
             {
                 Console.WriteLine($"App:   {pair.Key}     Time Limit:   {pair.Value}");
             }
@@ -127,21 +116,24 @@ class Logic
         else
         {
             if(cmd.Length < 4 && cmd[2] != "remove"){Console.WriteLine("Using this command: limits add/remove/edit <appname> <hh:mm:ss"); return;}
-            using var  EditConnection = new SqliteConnection(DataBase.connectionString);
-            EditConnection.Open();
-            using var EditCommand = new SqliteCommand("", EditConnection);
+            using var  connection = new SqliteConnection(DataBase.connectionString);
+            connection.Open();
+            using var command = new SqliteCommand("", connection);
             switch (cmd[1])
             {
                 case "add":
-                    EditCommand.CommandText = "INSERT INTO LimitsData (AppName , TimeLimit) VALUES (@N, @T)";
+                    command.CommandText = "INSERT INTO LimitsData (AppName , TimeLimit) VALUES (@N, @T)";
                     command.Parameters.AddWithValue("@T", cmd[3]);
+                    DataBase.TimeLimitsList[cmd[2]] = TimeSpan.Parse(cmd[3]);
                     break;
                 case "remove":
-                    EditCommand.CommandText = "DELETE * FROM LimitsData WHERE Appname = @N";
+                    command.CommandText = "DELETE * FROM LimitsData WHERE Appname = @N";
+                    DataBase.TimeLimitsList.Remove(cmd[2], out TimeSpan value);
                     break;
                 case "edit":
-                    EditCommand.CommandText = "UPDATE LimitsData SET TimeLimit = @T WHERE AppName = @N";
+                    command.CommandText = "UPDATE LimitsData SET TimeLimit = @T WHERE AppName = @N";
                     command.Parameters.AddWithValue("@T", cmd[3]);
+                    DataBase.TimeLimitsList[cmd[2]] = TimeSpan.Parse(cmd[3]);
                     break;
                 default:
                     Console.WriteLine($"Unknown argument {cmd[1]}");
@@ -169,8 +161,9 @@ class Logic
                         double time = TimeSpan.Parse(cmd[2]).TotalMilliseconds;
                         var timer = new System.Timers.Timer(time);
                         timer.AutoReset = false;
-                        timer.Elapsed += (s,e) => {IsFocusModeEnabled = false;};
+                        timer.Elapsed += (s,e) => {IsFocusModeEnabled = false; Console.WriteLine("Focus disabled");};
                         IsFocusModeEnabled = true;
+                        Console.WriteLine("Focus enabled");
                         timer.Start();
                         return;
                     }
@@ -181,9 +174,11 @@ class Logic
                     }
                 }
                 IsFocusModeEnabled = true;
+                Console.WriteLine("Focus enabled");
                 break;
             case "disable":
                 IsFocusModeEnabled = false;
+                Console.WriteLine("Focus disabled");
                 break;
             default:
                 Console.WriteLine($"Unknown argument {cmd[1]}");
