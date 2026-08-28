@@ -1,5 +1,4 @@
 using Microsoft.Data.Sqlite;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -16,8 +15,8 @@ class Logic
 
     private static string currentApp = "";
     private static DateTime startTime = DateTime.Now;
-    private static string[] blockedApps = [];
     public static bool IsFocusModeEnabled = false;
+    private static System.Timers.Timer AppTimer = null;
 
     private static void WriteTime(TimeSpan workTime, string name)
     {
@@ -52,12 +51,40 @@ class Logic
         }
         if (currentApp != process.ProcessName)
         {
+            if (AppTimer != null)
+            {
+                AppTimer.Stop();
+                AppTimer.Elapsed -= OnTimerElapsed;
+                AppTimer.Dispose();
+                AppTimer = null;
+            }
+            
             TimeSpan workTime = DateTime.Now - startTime;
             WriteTime(workTime, currentApp);
+            DataBase.TimeLimitsList[currentApp] -= workTime;
 
             currentApp = process.ProcessName;
             startTime = DateTime.Now;
+            if (DataBase.TimeLimitsList.ContainsKey(currentApp))
+            {
+                AppTimer = new System.Timers.Timer(DataBase.TimeLimitsList[currentApp].TotalMilliseconds);
+                AppTimer.AutoReset = false;
+                AppTimer.Elapsed += OnTimerElapsed;
+                AppTimer.Start();
+            }
         }
+    }
+    private static void OnTimerElapsed(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        Process process = Process.GetProcessesByName(currentApp).First();
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill();
+            }
+        }
+        catch{}
     }
     public static void ShowScreenTime()
     {
