@@ -13,12 +13,16 @@ class Logic
     [DllImport("user32.dll")]
     private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
 
-    private static string currentApp = "";
-    private static DateTime startTime = DateTime.Now;
-    public static bool IsFocusModeEnabled = false;
-    private static System.Timers.Timer AppTimer = null;
+    private string currentApp = "";
+    private List<string> blockedApps = new List<string>();
 
-    private static void WriteTime(TimeSpan workTime, string name)
+    private DateTime startTime = DateTime.Now;
+    public bool isFocusModeEnabled = false;
+
+    private System.Timers.Timer? appTimer = null;
+    private System.Timers.Timer? focusTimer = null;
+
+    private void WriteTime(TimeSpan workTime, string name)
     {
         TimeSpan totalTime = workTime;
         using var connection = new SqliteConnection(DataBase.connectionString);
@@ -36,14 +40,14 @@ class Logic
         command.Parameters.AddWithValue("@T", totalTime.ToString());
         command.ExecuteNonQuery();
     }
-    public static void GetActiveApp()
+    public void GetActiveApp()
     {
         IntPtr hwnd =  GetForegroundWindow();
         if (hwnd == IntPtr.Zero){return;}
 
         GetWindowThreadProcessId(hwnd, out uint pid);
         Process process = Process.GetProcessById((int)pid);
-        if (DataBase.DistAppsList.Contains(process.ProcessName) && IsFocusModeEnabled)
+        if ((DataBase.DistAppsList.Contains(process.ProcessName) && isFocusModeEnabled) || blockedApps.Contains(process.ProcessName))
         {
             process.Kill();
             Console.WriteLine($"App {process.ProcessName} is blocked");
@@ -51,42 +55,43 @@ class Logic
         }
         if (currentApp != process.ProcessName)
         {
-            if (AppTimer != null)
-            {
-                AppTimer.Stop();
-                AppTimer.Elapsed -= OnTimerElapsed;
-                AppTimer.Dispose();
-                AppTimer = null;
-            }
-            
             TimeSpan workTime = DateTime.Now - startTime;
+            if(appTimer != null){appTimer.Stop(); appTimer.Dispose(); appTimer = null; DataBase.TimeLimitsList[currentApp] -= workTime;}
             WriteTime(workTime, currentApp);
-            DataBase.TimeLimitsList[currentApp] -= workTime;
 
             currentApp = process.ProcessName;
             startTime = DateTime.Now;
-            if (DataBase.TimeLimitsList.ContainsKey(currentApp))
-            {
-                AppTimer = new System.Timers.Timer(DataBase.TimeLimitsList[currentApp].TotalMilliseconds);
-                AppTimer.AutoReset = false;
-                AppTimer.Elapsed += OnTimerElapsed;
-                AppTimer.Start();
-            }
         }
-    }
-    private static void OnTimerElapsed(object sender, System.Timers.ElapsedEventArgs e)
-    {
-        Process process = Process.GetProcessesByName(currentApp).First();
-        try
+        if (DataBase.TimeLimitsList.ContainsKey(currentApp) && appTimer == null)
         {
-            if (!process.HasExited)
+            appTimer = new System.Timers.Timer(DataBase.TimeLimitsList[currentApp].TotalMilliseconds);
+            appTimer.AutoReset = false;
+            appTimer.Elapsed += (s,e) => 
             {
-                process.Kill();
-            }
+                string targetApp = currentApp;
+                try
+                {
+                    var processes = Process.GetProcessesByName(targetApp);
+                    foreach (var p in processes)
+                    {
+                        p.Kill();
+                    }
+                    blockedApps.Add(targetApp);
+                }
+                catch{}
+                finally
+                {
+                    appTimer?.Dispose();
+                    appTimer = null;
+                }
+                
+                Console.WriteLine($"Time limit for {currentApp} is over today");
+                return;
+            };
+            appTimer.Start();
         }
-        catch{}
     }
-    public static void ShowScreenTime()
+    public void ShowScreenTime()
     {
         using var connection = new SqliteConnection(DataBase.connectionString);
         connection.Open();
@@ -97,7 +102,7 @@ class Logic
             Console.WriteLine($"{reader["AppName"]} :      {reader["Time"]}");
         }
     }
-    public static void DistApps(string[] cmd)
+    public void DistApps(string[] cmd)
     {
         if (cmd.Length < 2)
         {
@@ -131,7 +136,7 @@ class Logic
             }
         }
     }
-    public static void Limits(string[] cmd)
+    public void Limits(string[] cmd)
     {
         if (cmd.Length < 2)
         {
@@ -154,8 +159,8 @@ class Logic
                     DataBase.TimeLimitsList[cmd[2]] = TimeSpan.Parse(cmd[3]);
                     break;
                 case "remove":
-                    command.CommandText = "DELETE * FROM LimitsData WHERE Appname = @N";
-                    DataBase.TimeLimitsList.Remove(cmd[2], out TimeSpan value);
+                    command.CommandText = "DELETE FROM LimitsData WHERE Appname = @N";
+                    DataBase.TimeLimitsList.Remove(cmd[2]);
                     break;
                 case "edit":
                     command.CommandText = "UPDATE LimitsData SET TimeLimit = @T WHERE AppName = @N";
@@ -170,7 +175,7 @@ class Logic
             command.ExecuteNonQuery();
         }
     }
-    public static void FocusMode(string[] cmd)
+    public void FocusMode(string[] cmd)
     {
         if (cmd.Length < 2)
         {
@@ -180,18 +185,30 @@ class Logic
         switch (cmd[1])
         {
             case "enable":
-                
+                if (focusTimer != null)
+                {
+                    focusTimer.Stop();
+                    focusTimer.Dispose();
+                    focusTimer = null;
+                }
                 if (cmd.Length > 2)
                 {
                     try
                     {
                         double time = TimeSpan.Parse(cmd[2]).TotalMilliseconds;
-                        var timer = new System.Timers.Timer(time);
-                        timer.AutoReset = false;
-                        timer.Elapsed += (s,e) => {IsFocusModeEnabled = false; Console.WriteLine("Focus disabled");};
-                        IsFocusModeEnabled = true;
+
+                        focusTimer = new System.Timers.Timer(time);
+                        focusTimer.AutoReset = false;
+                        focusTimer.Elapsed += (s,e) => 
+                        {
+                            isFocusModeEnabled = false; 
+                            focusTimer?.Dispose();
+                            focusTimer = null;
+                            Console.WriteLine("Focus disabled"); 
+                        };
+                        isFocusModeEnabled = true;
                         Console.WriteLine("Focus enabled");
-                        timer.Start();
+                        focusTimer.Start();
                         return;
                     }
                     catch
@@ -200,11 +217,18 @@ class Logic
                         return;
                     }
                 }
-                IsFocusModeEnabled = true;
+
+                isFocusModeEnabled = true;
                 Console.WriteLine("Focus enabled");
                 break;
             case "disable":
-                IsFocusModeEnabled = false;
+                if(focusTimer != null)
+                {
+                    focusTimer.Stop();
+                    focusTimer.Dispose();
+                    focusTimer = null;
+                }
+                isFocusModeEnabled = false;
                 Console.WriteLine("Focus disabled");
                 break;
             default:

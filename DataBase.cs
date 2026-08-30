@@ -4,7 +4,7 @@ class DataBase
 {
     public static readonly string connectionString = $"Data Source= Database/STTData.db";
     public static List<string> DistAppsList = new List<string>();
-    public static ConcurrentDictionary<string, TimeSpan> TimeLimitsList = new ConcurrentDictionary<string, TimeSpan>();
+    public static Dictionary<string, TimeSpan> TimeLimitsList = new Dictionary<string, TimeSpan>();
 
     public static void CreateDB() //единоразовый метод для создания файлов БД
     {
