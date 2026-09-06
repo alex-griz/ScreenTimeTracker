@@ -30,6 +30,9 @@ class Program
                 case "distracting-apps":
                     logic.DistApps(cmd);
                     break;
+                case "find-apps":
+                    logic.FindApps();
+                    break;
                 case "help":
                     break;
                 default:

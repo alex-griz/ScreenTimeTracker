@@ -1,17 +1,22 @@
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace ScreenTimeTracker;
 class Logic
 {
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
     [DllImport("user32.dll")]
-    private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+        
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetShellWindow();
 
     private string currentApp = "";
     private List<string> blockedApps = new List<string>();
@@ -49,8 +54,14 @@ class Logic
         Process process = Process.GetProcessById((int)pid);
         if ((DataBase.DistAppsList.Contains(process.ProcessName) && isFocusModeEnabled) || blockedApps.Contains(process.ProcessName))
         {
-            process.Kill();
-            Console.WriteLine($"App {process.ProcessName} is blocked");
+            if(process.CloseMainWindow() && process.WaitForExit(3000))
+            {
+                Console.WriteLine($"App {process.ProcessName} is blocked");
+            }
+            else
+            {
+                process.Kill();
+            }
             return;
         }
         if (currentApp != process.ProcessName)
@@ -71,12 +82,17 @@ class Logic
                 string targetApp = currentApp;
                 try
                 {
-                    var processes = Process.GetProcessesByName(targetApp);
-                    foreach (var p in processes)
+                    var process = Process.GetProcessesByName(targetApp).First();
+                    if(process.CloseMainWindow() && process.WaitForExit(3000))
                     {
-                        p.Kill();
+                        Console.WriteLine($"Time limit for {currentApp} is over today");
+                    }
+                    else
+                    {
+                        process.Kill();
                     }
                     blockedApps.Add(targetApp);
+                    return;
                 }
                 catch{}
                 finally
@@ -84,9 +100,6 @@ class Logic
                     appTimer?.Dispose();
                     appTimer = null;
                 }
-                
-                Console.WriteLine($"Time limit for {currentApp} is over today");
-                return;
             };
             appTimer.Start();
         }
@@ -234,6 +247,36 @@ class Logic
             default:
                 Console.WriteLine($"Unknown argument {cmd[1]}");
                 break;
+        }
+    }
+    public void FindApps()
+    {
+        var windows = new List<string>();
+        IntPtr desktop = GetShellWindow();
+        
+        EnumWindows((hWnd, lParam) =>
+        {
+            if (hWnd != desktop && IsWindowVisible(hWnd))
+            {
+                GetWindowThreadProcessId(hWnd, out uint processId);
+                try
+                {
+                    Process process = Process.GetProcessById((int)processId);
+                    if (!string.IsNullOrEmpty(process.MainWindowTitle))
+                    {
+                        windows.Add(process.ProcessName+" => "+process.MainWindowTitle);
+                    }
+                }
+                catch
+                {}
+            }
+            return true;
+        }, IntPtr.Zero);
+        
+        Console.WriteLine("List of active apps: (Process Name > Window Title)");
+        foreach(string w in windows)
+        {
+            Console.WriteLine(w);
         }
     }
 }
