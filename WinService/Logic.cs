@@ -26,6 +26,18 @@ class Logic
 
     private System.Timers.Timer? appTimer = null;
     private System.Timers.Timer? focusTimer = null;
+    public string Execute(string[] cmd)
+    {
+        switch (cmd[0])
+        {
+            case "screen-time": return ShowScreenTime();
+            case "limits": return Limits(cmd);
+            case "focus-mode": return FocusMode(cmd);
+            case "find-apps": return FindApps();
+            case "distracting-apps": return DistApps(cmd);
+            default: return $"Unknown command {command}";
+        }
+    }
 
     private void WriteTime(TimeSpan workTime, string name)
     {
@@ -56,7 +68,7 @@ class Logic
         {
             if(process.CloseMainWindow() && process.WaitForExit(3000))
             {
-                Console.WriteLine($"App {process.ProcessName} is blocked");
+                //Console.WriteLine($"App {process.ProcessName} is blocked");
             }
             else
             {
@@ -85,7 +97,7 @@ class Logic
                     var process = Process.GetProcessesByName(targetApp).First();
                     if(process.CloseMainWindow() && process.WaitForExit(3000))
                     {
-                        Console.WriteLine($"Time limit for {currentApp} is over today");
+                        //Console.WriteLine($"Time limit for {currentApp} is over today");
                     }
                     else
                     {
@@ -112,17 +124,17 @@ class Logic
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            Console.WriteLine($"{reader["AppName"]} :      {reader["Time"]}");
+            //Console.WriteLine($"{reader["AppName"]} :      {reader["Time"]}");
         }
     }
     public void DistApps(string[] cmd)
     {
         if (cmd.Length < 2)
         {
-            Console.WriteLine("List of distracting apps:");
+            //Console.WriteLine("List of distracting apps:");
             foreach (string i in DataBase.DistAppsList)
             {
-                Console.WriteLine(i);
+                //Console.WriteLine(i);
             }
         }
         else
@@ -144,18 +156,18 @@ class Logic
                     }
                     break;
                 default:
-                    Console.WriteLine($"Unknown argument {cmd[1]}");
+                    //Console.WriteLine($"Unknown argument {cmd[1]}");
                     break;
             }
         }
     }
     public void Limits(string[] cmd)
     {
-        if (cmd.Length < 2)
+        if (cmd.Length < 3)
         {
             foreach(KeyValuePair<string,TimeSpan> pair in DataBase.TimeLimitsList)
             {
-                Console.WriteLine($"App:   {pair.Key}     Time Limit:   {pair.Value}");
+                //Console.WriteLine($"App:   {pair.Key}     Time Limit:   {pair.Value}");
             }
         }
         else
@@ -181,7 +193,7 @@ class Logic
                     DataBase.TimeLimitsList[cmd[2]] = TimeSpan.Parse(cmd[3]);
                     break;
                 default:
-                    Console.WriteLine($"Unknown argument {cmd[1]}");
+                    //Console.WriteLine($"Unknown argument {cmd[1]}");
                     return;
             }
             command.Parameters.AddWithValue("@N", cmd[2]);
@@ -192,7 +204,7 @@ class Logic
     {
         if (cmd.Length < 2)
         {
-            Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
+            //Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
             return;
         }
         switch (cmd[1])
@@ -217,22 +229,22 @@ class Logic
                             isFocusModeEnabled = false; 
                             focusTimer?.Dispose();
                             focusTimer = null;
-                            Console.WriteLine("Focus disabled"); 
+                            //Console.WriteLine("Focus disabled"); 
                         };
                         isFocusModeEnabled = true;
-                        Console.WriteLine("Focus enabled");
+                        //Console.WriteLine("Focus enabled");
                         focusTimer.Start();
                         return;
                     }
                     catch
                     {
-                        Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
+                        //Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
                         return;
                     }
                 }
 
                 isFocusModeEnabled = true;
-                Console.WriteLine("Focus enabled");
+                //Console.WriteLine("Focus enabled");
                 break;
             case "disable":
                 if(focusTimer != null)
@@ -242,10 +254,10 @@ class Logic
                     focusTimer = null;
                 }
                 isFocusModeEnabled = false;
-                Console.WriteLine("Focus disabled");
+                //Console.WriteLine("Focus disabled");
                 break;
             default:
-                Console.WriteLine($"Unknown argument {cmd[1]}");
+                //Console.WriteLine($"Unknown argument {cmd[1]}");
                 break;
         }
     }
@@ -273,10 +285,10 @@ class Logic
             return true;
         }, IntPtr.Zero);
         
-        Console.WriteLine("List of active apps: (Process Name > Window Title)");
+        //Console.WriteLine("List of active apps: (Process Name > Window Title):");
         foreach(string w in windows)
         {
-            Console.WriteLine(w);
+            //Console.WriteLine($"\n   {w}");
         }
     }
 }

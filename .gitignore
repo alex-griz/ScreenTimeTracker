@@ -1,3 +1,5 @@
-bin/
-obj/
-Database/
+WinService/bin/
+WinService/obj/
+WinService/Database/
+CLI/bin
+CLI/obj
