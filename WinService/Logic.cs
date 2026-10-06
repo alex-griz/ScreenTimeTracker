@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace ScreenTimeTracker;
 class Logic
@@ -35,7 +36,7 @@ class Logic
             case "focus-mode": return FocusMode(cmd);
             case "find-apps": return FindApps();
             case "distracting-apps": return DistApps(cmd);
-            default: return $"Unknown command {command}";
+            default: return $"Unknown command {cmd[0]}";
         }
     }
 
@@ -51,7 +52,7 @@ class Logic
         {
             totalTime = totalTime + TimeSpan.Parse(reader["Time"].ToString());
         }
-        reader.Close();
+        reader.Close(); 
 
         command.CommandText = "INSERT OR REPLACE INTO TimeData (AppName, Time) VALUES (@N, @T)";
         command.Parameters.AddWithValue("@T", totalTime.ToString());
@@ -116,37 +117,41 @@ class Logic
             appTimer.Start();
         }
     }
-    public void ShowScreenTime()
+    public string ShowScreenTime()
     {
+        var answer = new StringBuilder();
         using var connection = new SqliteConnection(DataBase.connectionString);
         connection.Open();
         using var command = new SqliteCommand("SELECT * FROM TimeData", connection);
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            //Console.WriteLine($"{reader["AppName"]} :      {reader["Time"]}");
+            answer.AppendLine($"{reader["AppName"]} :      {reader["Time"]}");
         }
+        return answer.ToString();
     }
-    public void DistApps(string[] cmd)
+    public string DistApps(string[] cmd)
     {
+        var answer = new StringBuilder();
         if (cmd.Length < 2)
         {
-            //Console.WriteLine("List of distracting apps:");
+            answer.AppendLine("List of distracting apps:");
             foreach (string i in DataBase.DistAppsList)
             {
-                //Console.WriteLine(i);
+                answer.AppendLine(i);
             }
+            return answer.ToString();
         }
         else
         {
-            if (cmd.Length < 3){Console.WriteLine("Using this command: distracting-apps add/remove <appname>"); return;}
+            if (cmd.Length < 3){answer.AppendLine("Using this command: distracting-apps add/remove <appname>"); return answer.ToString();}
             using StreamWriter writer = new StreamWriter("Database/DistractingApps.txt");
             switch (cmd[1])
             {
                 case "add":
                     writer.WriteLine(cmd[2]);
                     DataBase.DistAppsList.Add(cmd[2]);
-                    break;
+                    return "Success";
                 case "remove":
                     File.WriteAllText("Database/DistractingApps.txt", string.Empty);
                     DataBase.DistAppsList.Remove(cmd[2]);
@@ -154,25 +159,27 @@ class Logic
                     {
                         writer.WriteLine(i);
                     }
-                    break;
+                    return "Success";
                 default:
-                    //Console.WriteLine($"Unknown argument {cmd[1]}");
-                    break;
+                    answer.AppendLine($"Unknown argument {cmd[1]}");
+                    return answer.ToString();
             }
         }
     }
-    public void Limits(string[] cmd)
+    public string Limits(string[] cmd)
     {
+        var answer = new StringBuilder();
         if (cmd.Length < 3)
         {
             foreach(KeyValuePair<string,TimeSpan> pair in DataBase.TimeLimitsList)
             {
-                //Console.WriteLine($"App:   {pair.Key}     Time Limit:   {pair.Value}");
+                answer.AppendLine($"App:   {pair.Key}     Time Limit:   {pair.Value}");
             }
+            return answer.ToString();
         }
         else
         {
-            if(cmd.Length < 4 && cmd[2] != "remove"){Console.WriteLine("Using this command: limits add/remove/edit <appname> <hh:mm:ss"); return;}
+            if(cmd.Length < 4 && cmd[2] != "remove"){answer.AppendLine("Using this command: limits add/remove/edit <appname> <hh:mm:ss"); return answer.ToString();}
             using var  connection = new SqliteConnection(DataBase.connectionString);
             connection.Open();
             using var command = new SqliteCommand("", connection);
@@ -182,30 +189,35 @@ class Logic
                     command.CommandText = "INSERT INTO LimitsData (AppName , TimeLimit) VALUES (@N, @T)";
                     command.Parameters.AddWithValue("@T", cmd[3]);
                     DataBase.TimeLimitsList[cmd[2]] = TimeSpan.Parse(cmd[3]);
+                    answer.AppendLine("Success");
                     break;
                 case "remove":
                     command.CommandText = "DELETE FROM LimitsData WHERE Appname = @N";
                     DataBase.TimeLimitsList.Remove(cmd[2]);
+                    answer.AppendLine("Success");
                     break;
                 case "edit":
                     command.CommandText = "UPDATE LimitsData SET TimeLimit = @T WHERE AppName = @N";
                     command.Parameters.AddWithValue("@T", cmd[3]);
                     DataBase.TimeLimitsList[cmd[2]] = TimeSpan.Parse(cmd[3]);
+                    answer.AppendLine("Success");
                     break;
                 default:
-                    //Console.WriteLine($"Unknown argument {cmd[1]}");
-                    return;
+                    answer.AppendLine($"Unknown argument {cmd[1]}");
+                    break;
             }
             command.Parameters.AddWithValue("@N", cmd[2]);
             command.ExecuteNonQuery();
+            return answer.ToString();
         }
     }
-    public void FocusMode(string[] cmd)
+    public string FocusMode(string[] cmd)
     {
+        var answer = new StringBuilder();
         if (cmd.Length < 2)
         {
-            //Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
-            return;
+            answer.AppendLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
+            return answer.ToString();
         }
         switch (cmd[1])
         {
@@ -229,22 +241,21 @@ class Logic
                             isFocusModeEnabled = false; 
                             focusTimer?.Dispose();
                             focusTimer = null;
-                            //Console.WriteLine("Focus disabled"); 
                         };
                         isFocusModeEnabled = true;
-                        //Console.WriteLine("Focus enabled");
+                        answer.AppendLine("Focus enabled");
                         focusTimer.Start();
-                        return;
+                        return answer.ToString();
                     }
                     catch
                     {
-                        //Console.WriteLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
-                        return;
+                        answer.AppendLine("Using this command: focus-mode enable/disable hh:mm:ss(optional, only if enable)");
+                        return answer.ToString();
                     }
                 }
 
                 isFocusModeEnabled = true;
-                //Console.WriteLine("Focus enabled");
+                answer.AppendLine("Focus enabled");
                 break;
             case "disable":
                 if(focusTimer != null)
@@ -254,15 +265,17 @@ class Logic
                     focusTimer = null;
                 }
                 isFocusModeEnabled = false;
-                //Console.WriteLine("Focus disabled");
+                answer.AppendLine("Focus disabled");
                 break;
             default:
-                //Console.WriteLine($"Unknown argument {cmd[1]}");
+                answer.AppendLine($"Unknown argument {cmd[1]}");
                 break;
         }
+        return answer.ToString();
     }
-    public void FindApps()
+    public string FindApps()
     {
+        var answer = new StringBuilder();
         var windows = new List<string>();
         IntPtr desktop = GetShellWindow();
         
@@ -285,10 +298,11 @@ class Logic
             return true;
         }, IntPtr.Zero);
         
-        //Console.WriteLine("List of active apps: (Process Name > Window Title):");
+        answer.AppendLine("List of active apps: (Process Name > Window Title):");
         foreach(string w in windows)
         {
-            //Console.WriteLine($"\n   {w}");
+            answer.AppendLine($"\n   {w}");
         }
+        return answer.ToString();
     }
 }
