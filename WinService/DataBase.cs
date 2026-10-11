@@ -1,10 +1,18 @@
 using Microsoft.Data.Sqlite;
 class DataBase
 {
-    public static readonly string connectionString = $"Data Source= Database/STTData.db";
+    public static string connectionString = "";
+    private static string dbDir = "";
+    public static string daDir = "";
     public static List<string> DistAppsList = new List<string>();
     public static Dictionary<string, TimeSpan> TimeLimitsList = new Dictionary<string, TimeSpan>();
 
+    public static void Init(string baseDir)
+    {
+        dbDir = Path.Combine(baseDir, "Database");
+        connectionString = $"Data Source = {Path.Combine(dbDir,"STTData.db")}";
+        daDir = Path.Combine(dbDir, "DistractingApps.txt");
+    }
     public static void CreateDB() //единоразовый метод для создания файлов БД
     {
         if (!Directory.Exists("Database"))

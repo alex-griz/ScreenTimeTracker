@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ScreenTimeTracker;
-class Logic
+public class Logic
 {
     private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
     [DllImport("user32.dll")]
@@ -25,7 +25,7 @@ class Logic
     private DateTime startTime = DateTime.Now;
     public bool isFocusModeEnabled = false;
 
-    private System.Timers.Timer? appTimer = null;
+    private System.Timers.Timer? appTimer = null;   
     private System.Timers.Timer? focusTimer = null;
     public string Execute(string[] cmd)
     {
