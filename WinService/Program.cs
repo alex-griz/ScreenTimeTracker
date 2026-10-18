@@ -18,6 +18,7 @@ class Program
 
         builder.Services.AddSingleton<Logic>();
         builder.Services.AddHostedService<AppTracker>();
+        builder.Services.AddHostedService<PipeServer>();
         
         var host = builder.Build();
         host.Run();

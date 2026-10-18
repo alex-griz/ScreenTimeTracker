@@ -10,8 +10,8 @@ public class AppTracker : BackgroundService
     
     public AppTracker(Logic logic, ILogger<AppTracker> logger)
     {
-        logic = _logic;
-        logger = _logger;
+        _logic = logic;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)

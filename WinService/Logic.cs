@@ -145,7 +145,7 @@ public class Logic
         else
         {
             if (cmd.Length < 3){answer.AppendLine("Using this command: distracting-apps add/remove <appname>"); return answer.ToString();}
-            using StreamWriter writer = new StreamWriter("Database/DistractingApps.txt");
+            using StreamWriter writer = new StreamWriter(DataBase.daDir);
             switch (cmd[1])
             {
                 case "add":
@@ -153,7 +153,7 @@ public class Logic
                     DataBase.DistAppsList.Add(cmd[2]);
                     return "Success";
                 case "remove":
-                    File.WriteAllText("Database/DistractingApps.txt", string.Empty);
+                    File.WriteAllText(DataBase.daDir, string.Empty);
                     DataBase.DistAppsList.Remove(cmd[2]);
                     foreach(string i in DataBase.DistAppsList)
                     {

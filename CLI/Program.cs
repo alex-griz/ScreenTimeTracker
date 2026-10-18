@@ -24,12 +24,13 @@ class Program
             await writer.WriteLineAsync(JsonSerializer.Serialize(args));
 
             var response = await reader.ReadLineAsync();
-            if (string.IsNullOrEmpty(response))
+            var message = JsonSerializer.Deserialize<string>(response) ?? "";
+            if (string.IsNullOrEmpty(message))
             {
                 Console.WriteLine("Service is not avaible");
                 return 1;
             }
-            Console.WriteLine(response);
+            Console.WriteLine(message);
             return 0;
         }
         catch(Exception ex)

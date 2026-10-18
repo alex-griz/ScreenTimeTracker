@@ -4,28 +4,30 @@ class DataBase
     public static string connectionString = "";
     private static string dbDir = "";
     public static string daDir = "";
+    public static string dfDir = "";
     public static List<string> DistAppsList = new List<string>();
     public static Dictionary<string, TimeSpan> TimeLimitsList = new Dictionary<string, TimeSpan>();
 
     public static void Init(string baseDir)
     {
         dbDir = Path.Combine(baseDir, "Database");
-        connectionString = $"Data Source = {Path.Combine(dbDir,"STTData.db")}";
         daDir = Path.Combine(dbDir, "DistractingApps.txt");
+        dfDir = Path.Combine(dbDir, "STTData.db");
+        connectionString = $"Data Source = {dfDir}";
     }
     public static void CreateDB() //единоразовый метод для создания файлов БД
     {
-        if (!Directory.Exists("Database"))
+        if (!Directory.Exists(dbDir))
         {
-            Directory.CreateDirectory("Database");
+            Directory.CreateDirectory(dbDir);
         }
-        if (!File.Exists("Database/DistractingApps.txt"))
+        if (!File.Exists(daDir))
         {
-            File.Create("Database/DistractingApps.txt").Close();
+            File.Create(daDir).Close();
         }
-        if (!File.Exists("Database/STTData.db"))
+        if (!File.Exists(dfDir))
         {
-            File.Create("Database/STTData.db").Close();
+            File.Create(dfDir).Close();
 
             string createServicesTable = "CREATE TABLE TimeData (AppName VARCHAR(64) PRIMARY KEY, Time VARCHAR(24))";
             string createLimitsTable = "CREATE TABLE LimitsData (AppName VARCHAR(64) PRIMARY KEY, TimeLimit VARCHAR(24))";
@@ -40,7 +42,7 @@ class DataBase
     }
     public static void LoadDistApps()
     {
-        DistAppsList = File.ReadLines("Database/DistractingApps.txt").ToList();
+        DistAppsList = File.ReadLines(daDir).ToList();
         
         using var connection = new SqliteConnection(connectionString);
         connection.Open();
